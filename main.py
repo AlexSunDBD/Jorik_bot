@@ -17,7 +17,7 @@ def receive_update():
     message = update.message.text
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # или "gpt-4"
+        model="gpt-3.5-turbo",  # Или "gpt-4"
         messages=[
             {"role": "user", "content": message}
         ]
