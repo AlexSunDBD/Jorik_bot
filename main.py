@@ -2,21 +2,21 @@ import os
 from flask import Flask, request
 import openai
 from telegram import Update, Bot
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+import asyncio
 
 app = Flask(__name__)
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
+bot = Bot(token=TOKEN)
+
 client = openai.OpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1"
 )
 
-bot = Bot(token=TOKEN)
-
-# Обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     chat_id = update.message.chat.id
@@ -32,7 +32,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_message(chat_id=chat_id, text=reply_text)
 
-# Создаём приложение Telegram
 application = ApplicationBuilder().token(TOKEN).build()
 application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
@@ -40,7 +39,7 @@ application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle
 def webhook():
     data = request.get_json(force=True)
     update = Update.de_json(data, bot)
-    application.process_update(update)
+    asyncio.run(application.process_update(update))
     return "ok"
 
 @app.route("/")
