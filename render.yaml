@@ -1,6 +1,6 @@
 envVars:
   - key: TELEGRAM_TOKEN
     sync: false
-  - key: DEEPSEEK_API_KEY
+  - key: OPENROUTER_API_KEY
     sync: false
 start command: gunicorn main:app
