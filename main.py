@@ -48,7 +48,7 @@ def index():
 
 if __name__ == "__main__":
     app.run(debug=True)
-aimport os
+import os
 from flask import Flask, request
 import openai
 from telegram import Update, Bot
