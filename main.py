@@ -9,7 +9,7 @@ TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 BOT = telegram.Bot(token=TOKEN)
 
-# Клиент OpenRouter
+# Клиент OpenRouter с новой версией API
 client = OpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1"
@@ -34,7 +34,7 @@ def receive_update():
             asyncio.run(send_async_message(update.message.chat.id, "Ошибка: Не настроен API-ключ OpenRouter"))
             return "ok"
 
-        # Запрос к OpenRouter
+        # Запрос к OpenRouter с новым синтаксисом
         response = client.chat.completions.create(
             model="openai/gpt-4",  # Можно изменить на другую модель
             messages=[{"role": "user", "content": message}]
