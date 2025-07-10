@@ -1,29 +1,37 @@
 import os
 from flask import Flask, request
-from telegram.ext import ApplicationBuilder, CommandHandler
+import openai
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+# Настройки OpenRouter
+openai.api_key = os.environ.get("OPENROUTER_API_KEY")
+openai.base_url = "https://openrouter.ai/api/v1"
 
-# Создаём Telegram-бота
-telegram_app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+app = Flask(__name__)
 
-# Обработчик команды /start
-async def start(update, context):
-    await update.message.reply_text("Бот работает!")
+@app.route("/")
+def home():
+    return "Бот работает!"
 
-telegram_app.add_handler(CommandHandler("start", start))
+@app.route("/<token>", methods=["POST"])
+def receive_update(token):
+    data = request.get_json()
 
-# Flask-приложение для Render
-flask_app = Flask(__name__)
+    if "message" not in data or "text" not in data["message"]:
+        return "Пропущено: нет текста сообщения", 200
 
-@flask_app.route('/')
-def index():
-    return "Bot is running!"
+    message = data["message"]["text"]
 
-@flask_app.before_first_request
-def run_bot():
-    telegram_app.run_polling()
+    response = openai.ChatCompletion.create(
+        model="openai/gpt-4o",  # Можно выбрать другую модель
+        messages=[
+            {"role": "user", "content": message}
+        ]
+    )
 
-# Это точка входа для Gunicorn
-app = flask_app
+    reply_text = response.choices[0].message["content"]
+
+    return {"text": reply_text}, 200
+
+if __name__ == "__main__":
+    app.run(debug=True)
 
