@@ -1,15 +1,5 @@
-services:
-  - type: web
-    name: jorik-bot
-    env: docker
-    plan: free
-    dockerfilePath: ./Dockerfile
-    envVars:
-      - key: TELEGRAM_TOKEN
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-
-
-
-
+envVars:
+  - key: TELEGRAM_TOKEN
+    sync: false
+  - key: DEEPSEEK_API_KEY
+    sync: false

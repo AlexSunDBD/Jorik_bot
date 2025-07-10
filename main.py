@@ -1,13 +1,11 @@
 from flask import Flask, request
 import os
 import telegram
-from openai import OpenAI
+import requests
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-OPENAI_KEY = os.environ.get("OPENAI_API_KEY")
+DEEPSEEK_KEY = os.environ.get("DEEPSEEK_API_KEY")  # Новый ключ
 BOT = telegram.Bot(token=TOKEN)
-
-client = OpenAI(api_key=OPENAI_KEY)
 
 app = Flask(__name__)
 
@@ -16,14 +14,22 @@ def receive_update():
     update = telegram.Update.de_json(request.get_json(force=True), BOT)
     message = update.message.text
 
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # Или "gpt-4"
-        messages=[
-            {"role": "user", "content": message}
-        ]
+    # Вызов DeepSeek API
+    headers = {
+        "Authorization": f"Bearer {DEEPSEEK_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "deepseek-chat",
+        "messages": [{"role": "user", "content": message}]
+    }
+    response = requests.post(
+        "https://api.deepseek.com/v1/chat/completions",
+        headers=headers,
+        json=data
     )
+    reply = response.json()["choices"][0]["message"]["content"]
 
-    reply = response.choices[0].message.content
     BOT.send_message(chat_id=update.message.chat.id, text=reply)
     return "ok"
 
@@ -33,4 +39,3 @@ def index():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
