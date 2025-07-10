@@ -1,100 +1,40 @@
 import os
-from flask import Flask, request
-import openai
-from telegram import Update, Bot
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 import asyncio
+from flask import Flask, request
+from telegram import Update, Bot
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-app = Flask(__name__)
-
+# Получаем токен из переменной окружения
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
-
 bot = Bot(token=TOKEN)
 
-client = openai.OpenAI(
-    api_key=OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1"
-)
+# Инициализация Flask и Telegram Application
+app = Flask(__name__)
+application = Application.builder().token(TOKEN).build()
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
-    chat_id = update.message.chat.id
+# Пример команды /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Привет! Я бот, всё работает!")
 
-    try:
-        response = client.chat.completions.create(
-            model="openai/gpt-4o",
-            messages=[{"role": "user", "content": user_message}]
-        )
-        reply_text = response.choices[0].message.content
-    except Exception as e:
-        reply_text = f"Ошибка: {str(e)}"
+# Регистрируем обработчики
+application.add_handler(CommandHandler("start", start))
 
-    await context.bot.send_message(chat_id=chat_id, text=reply_text)
-
-application = ApplicationBuilder().token(TOKEN).build()
-application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-
+# Webhook endpoint
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     data = request.get_json(force=True)
     update = Update.de_json(data, bot)
-    asyncio.run(application.process_update(update))
+
+    async def process():
+        await application.initialize()
+        await application.process_update(update)
+
+    asyncio.run(process())
     return "ok"
 
-@app.route("/")
-def index():
-    return "Бот работает!"
-
-if __name__ == "__main__":
-    app.run(debug=True)
-import os
-from flask import Flask, request
-import openai
-from telegram import Update, Bot
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
-import asyncio
-
-app = Flask(__name__)
-
-TOKEN = os.environ.get("TELEGRAM_TOKEN")
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
-
-bot = Bot(token=TOKEN)
-
-client = openai.OpenAI(
-    api_key=OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1"
-)
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
-    chat_id = update.message.chat.id
-
-    try:
-        response = client.chat.completions.create(
-            model="openai/gpt-4o",
-            messages=[{"role": "user", "content": user_message}]
-        )
-        reply_text = response.choices[0].message.content
-    except Exception as e:
-        reply_text = f"Ошибка: {str(e)}"
-
-    await context.bot.send_message(chat_id=chat_id, text=reply_text)
-
-application = ApplicationBuilder().token(TOKEN).build()
-application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-application.initialize()  # Важный вызов!
-
-@app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    data = request.get_json(force=True)
-    update = Update.de_json(data, bot)
-    asyncio.run(application.process_update(update))
-    return "ok"
-
-@app.route("/")
-def index():
+# Тестовая заглушка
+@app.route("/", methods=["GET"])
+def home():
     return "Бот работает!"
 
 if __name__ == "__main__":
