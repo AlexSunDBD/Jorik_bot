@@ -4,7 +4,7 @@ import telegram
 import requests
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-DEEPSEEK_KEY = os.environ.get("DEEPSEEK_API_KEY")  # Новый ключ
+DEEPSEEK_KEY = os.environ.get("DEEPSEEK_API_KEY")
 BOT = telegram.Bot(token=TOKEN)
 
 app = Flask(__name__)
@@ -14,7 +14,7 @@ def receive_update():
     update = telegram.Update.de_json(request.get_json(force=True), BOT)
     message = update.message.text
 
-    # Вызов DeepSeek API
+    # Запрос к DeepSeek API
     headers = {
         "Authorization": f"Bearer {DEEPSEEK_KEY}",
         "Content-Type": "application/json"
