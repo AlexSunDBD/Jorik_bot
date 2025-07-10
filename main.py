@@ -1,35 +1,39 @@
-from flask import Flask, request
 import os
-import telegram
-from openai import OpenAI
+from flask import Flask, request
+import openai
 
-TOKEN = os.environ.get("TELEGRAM_TOKEN")
-OPENAI_KEY = os.environ.get("OPENAI_API_KEY")
-BOT = telegram.Bot(token=TOKEN)
-
-client = OpenAI(api_key=OPENAI_KEY)
+# Создание клиента OpenRouter
+client = openai.OpenAI(
+    api_key=os.environ.get("OPENROUTER_API_KEY"),
+    base_url="https://openrouter.ai/api/v1"
+)
 
 app = Flask(__name__)
 
-@app.route(f"/{TOKEN}", methods=["POST"])
-def receive_update():
-    update = telegram.Update.de_json(request.get_json(force=True), BOT)
-    message = update.message.text
-
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # Или "gpt-4"
-        messages=[
-            {"role": "user", "content": message}
-        ]
-    )
-
-    reply = response.choices[0].message.content
-    BOT.send_message(chat_id=update.message.chat.id, text=reply)
-    return "ok"
-
 @app.route("/")
-def index():
-    return "Bot is running"
+def home():
+    return "Бот работает!"
+
+@app.route("/<token>", methods=["POST"])
+def receive_update(token):
+    data = request.get_json()
+
+    if "message" not in data or "text" not in data["message"]:
+        return "Пропущено: нет текста сообщения", 200
+
+    message = data["message"]["text"]
+
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-4o",  # или другую: see https://openrouter.ai/docs#models
+            messages=[
+                {"role": "user", "content": message}
+            ]
+        )
+        reply_text = response.choices[0].message.content
+        return {"text": reply_text}, 200
+    except Exception as e:
+        return {"text": f"Ошибка: {str(e)}"}, 200
 
 if __name__ == "__main__":
     app.run(debug=True)
