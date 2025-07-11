@@ -4,9 +4,16 @@ import telegram
 import asyncio
 from openai import OpenAI
 import logging
+import nest_asyncio
+
+# Применяем исправление для асинхронных операций в Flask
+nest_asyncio.apply()
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Настройки
@@ -24,7 +31,12 @@ app = Flask(__name__)
 
 async def send_async_message(chat_id, text):
     try:
-        await BOT.send_message(chat_id=chat_id, text=text)
+        await BOT.send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode='Markdown',
+            disable_web_page_preview=True
+        )
     except Exception as e:
         logger.error(f"Telegram send error: {e}")
 
@@ -32,22 +44,43 @@ async def send_async_message(chat_id, text):
 def receive_update():
     try:
         update = telegram.Update.de_json(request.get_json(force=True), BOT)
+        
+        # Проверяем, что сообщение содержит текст
+        if not update.message or not update.message.text:
+            logger.warning("Empty message received")
+            return "ok", 200
+            
         message = update.message.text
         chat_id = update.message.chat.id
+        logger.info(f"Received message from {chat_id}: {message[:50]}...")
 
         # Проверка API ключа
         if not OPENROUTER_API_KEY:
-            asyncio.run(send_async_message(chat_id, "❌ Ошибка: Не настроен API-ключ OpenRouter"))
-            return "ok"
+            logger.error("OpenRouter API key not configured")
+            asyncio.run(send_async_message(
+                chat_id, 
+                "❌ Ошибка: Не настроен API-ключ OpenRouter"
+            ))
+            return "ok", 200
 
         # Запрос к OpenRouter
         try:
+            logger.info(f"Sending request to DeepSeek V3: {message[:50]}...")
+            
             response = client.chat.completions.create(
-                model="deepseek/deepseek-v3",  # Правильное имя модели
-                messages=[{"role": "user", "content": message}],
-                max_tokens=2000  # Ограничение длины ответа
+                model="deepseek-ai/deepseek-v3",
+                messages=[
+                    {"role": "system", "content": "Ты полезный ассистент Жорик. Отвечай дружелюбно и кратко."},
+                    {"role": "user", "content": message}
+                ],
+                max_tokens=1500,
+                temperature=0.7,
+                top_p=0.9
             )
+            
             reply = response.choices[0].message.content
+            logger.info(f"Received response: {reply[:50]}...")
+            
             asyncio.run(send_async_message(chat_id, reply))
             
         except Exception as api_error:
@@ -55,24 +88,35 @@ def receive_update():
             logger.error(error_msg)
             
             if "402" in str(api_error):
-                msg = "❌ Закончились кредиты на OpenRouter. Пополните баланс: https://openrouter.ai/settings/credits"
-            elif "404" in str(api_error):
-                msg = "❌ Модель не найдена. Проверьте название модели."
+                msg = "❌ Закончились кредиты на OpenRouter\nПополните баланс: [OpenRouter Credits](https://openrouter.ai/settings/credits)"
+            elif "400" in str(api_error) and "not a valid model ID" in str(api_error):
+                msg = "❌ Ошибка конфигурации модели\nПопробуйте позже или сообщите разработчику"
             else:
-                msg = f"❌ Ошибка API: {str(api_error)}"
+                msg = "❌ Ошибка API\nПопробуйте позже или сообщите разработчику"
             
             asyncio.run(send_async_message(chat_id, msg))
             
     except Exception as e:
         error_msg = f"System error: {str(e)}"
         logger.error(error_msg)
-        asyncio.run(send_async_message(chat_id, "❌ Техническая ошибка. Разработчик уже уведомлен"))
+        asyncio.run(send_async_message(
+            chat_id,
+            "❌ Критическая ошибка\nРазработчик уже уведомлен"
+        ))
     
-    return "ok"
+    return "ok", 200
 
 @app.route("/")
 def index():
-    return "Bot is running"
+    return "🤖 Бот Жорик работает! 🚀", 200
+
+@app.route("/health")
+def health_check():
+    return "OK", 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000)),
+        debug=os.environ.get("DEBUG", "false").lower() == "true"
+    )
