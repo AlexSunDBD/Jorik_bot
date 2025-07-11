@@ -23,7 +23,7 @@ client = OpenAI(
 )
 
 # Правильное имя модели DeepSeek в OpenRouter
-DEEPSEEK_MODEL = "deepseek/deepseek-chat"  # Рабочая модель DeepSeek
+DEEPSEEK_MODEL = "deepseek/deepseek-v3"  # Рабочая модель DeepSeek
 
 app = Flask(__name__)
 
