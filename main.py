@@ -23,7 +23,7 @@ client = OpenAI(
 )
 
 # Правильное имя модели DeepSeek в OpenRouter
-DEEPSEEK_MODEL = "deepseek/deepseek-v3"  # Рабочая модель DeepSeek
+DEEPSEEK_MODEL = "mistralai/mixtral-8x7b-instruct"  # Рабочая бесплатная модель 
 
 app = Flask(__name__)
 
