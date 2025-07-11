@@ -1,9 +1,8 @@
 from flask import Flask, request
 import os
 import telegram
-from openai import OpenAI
-import logging
 import requests
+import logging
 
 # Настройка логирования
 logging.basicConfig(
@@ -17,12 +16,12 @@ TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 bot = telegram.Bot(token=TOKEN)
 
-# Полностью бесплатная модель (проверенная)
+# Гарантированно бесплатная модель
 MODEL = "mistralai/mistral-7b-instruct"
 
 app = Flask(__name__)
 
-def sync_send_message(chat_id, text):
+def send_message(chat_id, text):
     try:
         bot.send_message(
             chat_id=chat_id,
@@ -45,7 +44,6 @@ def receive_update():
         logger.info(f"New message from {chat_id}: {message[:50]}...")
 
         try:
-            # Используем прямой HTTP-запрос как временное решение
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
@@ -66,15 +64,15 @@ def receive_update():
             
             if response.status_code == 200:
                 reply = response.json()["choices"][0]["message"]["content"]
-                sync_send_message(chat_id, reply)
+                send_message(chat_id, reply)
             else:
                 error_msg = response.json().get("error", {}).get("message", "Unknown error")
                 logger.error(f"API error: {error_msg}")
-                sync_send_message(chat_id, "⚠️ Ошибка сервера. Попробуйте позже.")
+                send_message(chat_id, "⚠️ Ошибка сервера. Попробуйте позже.")
             
         except Exception as api_error:
             logger.error(f"API request failed: {str(api_error)}")
-            sync_send_message(chat_id, "🔴 Временные технические проблемы")
+            send_message(chat_id, "🔴 Временные технические проблемы")
             
     except Exception as e:
         logger.error(f"System error: {str(e)}")
