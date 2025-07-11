@@ -1,7 +1,6 @@
 from flask import Flask, request
 import os
 import telegram
-import asyncio
 from openai import OpenAI
 import logging
 
@@ -23,11 +22,13 @@ client = OpenAI(
     base_url="https://openrouter.ai/api/v1"
 )
 
+# Правильное имя модели DeepSeek в OpenRouter
+DEEPSEEK_MODEL = "deepseek/deepseek-chat"  # Рабочая модель DeepSeek
+
 app = Flask(__name__)
 
 def sync_send_message(chat_id, text):
     try:
-        # Используем синхронный метод отправки
         BOT.send_message(
             chat_id=chat_id,
             text=text,
@@ -59,17 +60,16 @@ def receive_update():
             return "ok", 200
 
         try:
-            logger.info(f"Sending request to DeepSeek V3: {message[:50]}...")
+            logger.info(f"Sending request to {DEEPSEEK_MODEL}: {message[:50]}...")
             
             response = client.chat.completions.create(
-                model="deepseek-ai/deepseek-v3",
+                model=DEEPSEEK_MODEL,
                 messages=[
                     {"role": "system", "content": "Ты полезный ассистент Жорик. Отвечай дружелюбно и кратко."},
                     {"role": "user", "content": message}
                 ],
-                max_tokens=1500,
-                temperature=0.7,
-                top_p=0.9
+                max_tokens=1000,
+                temperature=0.7
             )
             
             reply = response.choices[0].message.content
@@ -82,11 +82,11 @@ def receive_update():
             logger.error(error_msg)
             
             if "402" in str(api_error):
-                msg = "❌ Закончились кредиты на OpenRouter\nПополните баланс: [OpenRouter Credits](https://openrouter.ai/settings/credits)"
-            elif "400" in str(api_error) and "not a valid model ID" in str(api_error):
-                msg = "❌ Ошибка конфигурации модели\nПопробуйте позже или сообщите разработчику"
+                msg = "❌ Закончились кредиты\nПополните: [OpenRouter Credits](https://openrouter.ai/settings/credits)"
+            elif "model" in str(api_error).lower():
+                msg = "❌ Проблема с моделью\nИспользуется: " + DEEPSEEK_MODEL
             else:
-                msg = "❌ Ошибка API\nПопробуйте позже или сообщите разработчику"
+                msg = "❌ Ошибка API\nПопробуйте позже"
             
             sync_send_message(chat_id, msg)
             
@@ -95,7 +95,7 @@ def receive_update():
         logger.error(error_msg)
         sync_send_message(
             chat_id,
-            "❌ Критическая ошибка\nРазработчик уже уведомлен"
+            "❌ Техническая ошибка\nМы уже работаем над исправлением"
         )
     
     return "ok", 200
@@ -104,13 +104,9 @@ def receive_update():
 def index():
     return "🤖 Бот Жорик работает! 🚀", 200
 
-@app.route("/health")
-def health_check():
-    return "OK", 200
-
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 10000)),
-        debug=os.environ.get("DEBUG", "false").lower() == "true"
+        debug=False
     )
